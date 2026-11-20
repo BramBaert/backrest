@@ -20,6 +20,7 @@ var (
 	EnvVarBinPath                    = "BACKREST_RESTIC_COMMAND"               // path to restic binary (default restic)
 	EnvVarMultihostHeartbeatInterval = "BACKREST_MULTIHOST_HEARTBEAT_INTERVAL" // interval for multihost heartbeat messages
 	EnvVarStatusEndpoint             = "BACKREST_STATUS_ENDPOINT"              // enables the unauthenticated /statusz endpoint (default false)
+	EnvVarReadyTimeout               = "BACKREST_READY_TIMEOUT"                // timeout for the /readyz readiness check
 )
 
 var flagDataDir = flag.String("data-dir", "", "path to data directory, defaults to XDG_DATA_HOME/.local/backrest. Overrides BACKREST_DATA environment variable.")
@@ -28,6 +29,7 @@ var flagBindAddress = flag.String("bind-address", "", "address to bind to, defau
 var flagResticBinPath = flag.String("restic-cmd", "", "path to restic binary, defaults to a backrest managed version of restic. Overrides BACKREST_RESTIC_COMMAND environment variable.")
 var flagMultihostHeartbeatInterval = flag.Duration("multihost-heartbeat-interval", 600*time.Second, "interval in seconds to send heartbeat messages to other hosts in a multihost setup. Defaults to 600 seconds, but can be set lower to keep connections alive with reverse proxies that aggressively timeout idle connections.")
 var flagStatusEndpoint = flag.Bool("status-endpoint", false, "enable the unauthenticated /statusz endpoint, which reveals plan IDs and their backup status. Also enabled by BACKREST_STATUS_ENDPOINT=true.")
+var flagReadyTimeout = flag.Duration("ready-timeout", 0, "timeout for the /readyz readiness check to query the operation log. Defaults to 10 seconds. Overrides the BACKREST_READY_TIMEOUT environment variable.")
 
 // ConfigFilePath
 // - *nix systems use $XDG_CONFIG_HOME/backrest/config.json
@@ -108,6 +110,20 @@ func StatusEndpointEnabled() bool {
 		return enabled
 	}
 	return false
+}
+
+func ReadyTimeout() time.Duration {
+	if *flagReadyTimeout != 0 {
+		return *flagReadyTimeout
+	}
+	if val := os.Getenv(EnvVarReadyTimeout); val != "" {
+		if d, err := time.ParseDuration(val); err == nil {
+			return d
+		} else {
+			zap.S().Warnf("Invalid duration for %s: %s, using default 10 seconds", EnvVarReadyTimeout, val)
+		}
+	}
+	return 10 * time.Second // Default to 10 seconds.
 }
 
 func LogsPath() string {

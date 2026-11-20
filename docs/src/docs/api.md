@@ -84,3 +84,39 @@ curl 'localhost:9898/statusz'
 To get only some plans, add one or more `plan` parameters, e.g. `curl 'localhost:9898/statusz?plan=YOUR_PLAN_ID'`. If any of them is not a plan in the config, the answer is `404` with `{"error": "unknown plan"}`.
 
 The numbers are computed at most once a minute, so a backup can take up to a minute to show up. If the operation history can't be read within 10 seconds, or the read fails, the answer is `503` with `{"error": "status unavailable"}`; the reason is in Backrest's log.
+
+### Health Checks (Liveness & Readiness Probes)
+
+Backrest provides two unauthenticated endpoints to monitor the application's state, specifically designed for orchestrators like Kubernetes or Docker Compose.
+
+#### 1. Liveness Probe
+
+**`GET /healthz`**
+
+This endpoint checks if the core HTTP server is running and responsive. Use this for your `livenessProbe` 
+
+* **Success Response:** HTTP `200 OK` with the plain text body `OK`.
+
+#### 2. Readiness Probe
+
+**`GET /readyz`**
+
+It verifies that the configuration is successfully loaded into memory and that the internal database is responsive. Use this for your `readinessProbe`
+
+* **Success Response:** HTTP `200 OK` with JSON body:
+```json
+{
+  "status": "READY"
+}
+
+```
+
+
+* **Failure Response:** HTTP `503 Service Unavailable` with a JSON body explaining the error:
+```json
+{
+  "status": "DOWN",
+  "reason": "Database is locked or unresponsive"
+}
+
+```
